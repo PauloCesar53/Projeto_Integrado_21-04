@@ -60,9 +60,9 @@ void gpio_irq_handler(uint gpio, uint32_t events);// protótipo função interru
 void Sensor_Matiz_5X5(uint joy_x, uint joy_y);//// protótipo função que escolhe qual sensor será representado na matriz 
 void Imprime_5X5(uint rate);// protótipo função que mostra percentual do  sensor  na matriz 5x5
 void Monitoramento(uint joy_x, uint joy_y, ssd1306_t c, bool b);// protótipo função que mostra monitoramento dos sensores no Display
-void Irrigacao(uint joy_x);// Protótipo de função para acionar bomba d'água 
+void Bomba_reservatorio(uint joy_x);// Protótipo de função para acionar bomba d'água 
 void pwm_init_gpio(uint gpio, uint wrap);//protótipo de função para configurar pwm
-void alerta_umidade(uint joy_x);//protótipo de função gerar alerta sonoro de umidade 
+void alerta_nivel(uint joy_x);//protótipo de função gerar alerta sonoro de para nível do reservatório
 void history_T(uint16_t joy_y);// protótipo de função armazena maior Temperatura do intervalo no Histórico 
 void His_T_Dislay(ssd1306_t c, bool b);// protótipo de função para mostrar histórico de Temperatura no Display
 
@@ -127,7 +127,7 @@ int main()
     while (1)
     {
         
-        adc_select_input(0);//canal adc JOY para eixo y
+        /*adc_select_input(0);//canal adc JOY para eixo y
         uint16_t JOY_Y_value = (adc_read()/4095.0)*50; // Lê o valor do eixo y, de 0 a 4095 e calcula temperatura (0 a 50°C)
         adc_select_input(1);//canal adc JOY para eixo x
         uint16_t JOY_X_value = (adc_read()/4095.0)*100;// Lê o valor do eixo x, de 0 a 4095 e  calcula % umidade
@@ -139,7 +139,66 @@ int main()
             Monitoramento(JOY_X_value, JOY_Y_value, ssd, collor);//mostra monitoramento em tempo real 
         }else{
             His_T_Dislay(ssd, collor);//mostra histórico de Temperatura 
+        }*/
+                         // Converte o inteiro em string
+    
+        
+        adc_select_input(0);//canal adc JOY para eixo y
+        uint16_t JOY_Y_value = adc_read(); // Lê o valor do eixo y, de 0 a 4095.
+        adc_select_input(1);//canal adc JOY para eixo x
+        uint16_t JOY_X_value = adc_read();// Lê o valor do eixo x, de 0 a 4095.
+    
+
+        //uint  JOY_botton_value= gpio_get(JOY_botton) == 0; // 0 indica que o botão está pressionado.
+    
+        /*if(aux_LED_PWM){//se verdadeiro intensidade para LEDs azul e vermellho disponíveis no JOY
+            LED_Control(JOY_Y_value, JOY_X_value, ajuste, pwm_wrap);
+        }*/
+        ssd1306_fill(&ssd, !cor); // Limpa o display
+        // ,cima,esquerda,direita,baixo, 
+        // ,topo,esquerda,largura ,altura, 
+    
+            ssd1306_rect(&ssd, 3, 3, 122, 60, cor, !cor); // Desenha um retângulo
+        
+        uint posicao_X=(127*JOY_X_value/4096);//calcula posição de x no display 
+        uint posicao_y=((63*JOY_Y_value/4096)*-1)+63;//calcula posição de y no display 
+        char str_x[5];  // Buffer para armazenar a string
+        char str_y[5];  // Buffer para armazenar a string
+        uint joy_x=JOY_X_value/4095.0*100;
+        uint joy_y=JOY_Y_value/4095.0*50;
+        printf("Nivel reservatorio=%d %%   Temperatura=%d °C\n",joy_x,joy_y);
+        sprintf(str_x, "%d", joy_x);                     // Converte o inteiro em string
+        sprintf(str_y, "%d", joy_y);                     // Converte o inteiro em string
+    
+        Sensor_Matiz_5X5(joy_x, joy_y);//escolhe qual sensor mostrar na matriz de LEDs
+        alerta_nivel(joy_x);//alerta sonoro se nível reservatório fica < que 15%
+        Bomba_reservatorio(joy_x);//Liga LED azul simulando acionamento de bomba D'água
+        //ssd1306_draw_string(&ssd, "MONITORAMENTO", 12, 5); // Desenha uma string
+        ssd1306_draw_string(&ssd, str_x, 26, 5);   // Desenha uma string
+
+        ssd1306_draw_string(&ssd, "R", 9, 5);   // Desenha uma string
+        ssd1306_draw_string(&ssd, "T", 79, 5);   // Desenha uma string
+        ssd1306_draw_string(&ssd, "yC", 107, 5);   // equivale a ° na fonte.h
+        ssd1306_draw_string(&ssd, "z", 42, 5);     // z equivale a % na font.h
+        ssd1306_draw_string(&ssd, str_y, 91, 5);   // Desenha uma string
+        ////limitar quadrado em relaçao a y
+        if(posicao_y<10){
+            posicao_y=10;
+        } else if (posicao_y>48){
+            posicao_y=48;
         }
+        //para limitar posição do quadrado em ralação a X
+        if(posicao_X<10){
+            ssd1306_draw_char(&ssd,'Z', 10, posicao_y); // Desenha uma letra Z que representa quadrado na 8X8 na font.h
+        }else if(posicao_X>107){
+             ssd1306_draw_char(&ssd,'Z', 107, posicao_y); // Desenha uma letra Z que representa quadrado na 8X8 na font.h
+        }else{
+           ssd1306_draw_char(&ssd,'Z', posicao_X, posicao_y); // Desenha uma letra Z que representa quadrado na 8X8 na font.h
+        }
+        ssd1306_send_data(&ssd); // Atualiza o display
+        sleep_ms(100);
+        //Monitoramento(JOY_X_value, JOY_Y_value, ssd, collor);//mostra monitoramento em tempo real
+       
     }
     return 0;
 }
@@ -240,11 +299,8 @@ void Imprime_5X5(uint rate){//
 }
 //Função que mostra monitoramente de temperatura e umidade no display em tempo real 
 void Monitoramento(uint joy_x, uint joy_y, ssd1306_t c, bool b){
-    char str_x[5];  // Buffer para armazenar a string
-    char str_y[5];  // Buffer para armazenar a string
-    sprintf(str_x, "%d", joy_x);                     // Converte o inteiro em string
-    sprintf(str_y, "%d", joy_y);                     // Converte o inteiro em string
-    ssd1306_fill(&c, !b);                            // Limpa o display
+   
+   /* ssd1306_fill(&c, !b);                            // Limpa o display
     ssd1306_rect(&c, 3, 3, 122, 60, b, !b);          // Desenha um retângulo
     ssd1306_line(&c, 3, 14, 123, 14, b);             // Desenha uma linha
     ssd1306_draw_string(&c, "MONITORAMENTO", 12, 5); // Desenha uma string
@@ -261,12 +317,15 @@ void Monitoramento(uint joy_x, uint joy_y, ssd1306_t c, bool b){
     ssd1306_draw_string(&c, str_y, 91, 35);   // Desenha uma string
     ssd1306_line(&c, 3, 50, 123, 50, b);             // Desenha uma linha
     ssd1306_send_data(&c);                    // Atualiza o display
+*/
+
+    
 }
 // Função para simular acionamento de bomba d'água com LED azul
-void Irrigacao(uint joy_x){
-    if(joy_x<=20){//aciona bomda d'agua para irrigação se umidade chegar a 20%
+void Bomba_reservatorio(uint joy_x){
+    if(joy_x<=20){//aciona bomda d'agua para reservatório se nível ficar  abaixo de 20%
         gpio_put(LED_PIN_B, 1);
-    }else if(joy_x>=60){//desliga bomba d'agua para irrigação se umidade chegar a 60%
+    }else if(joy_x>=95){//desliga bomba d'agua  se nível chegar a 95%
         gpio_put(LED_PIN_B, 0);
     }
 }
@@ -290,8 +349,8 @@ void pwm_init_gpio(uint gpio, uint wrap) {
     pwm_set_clkdiv(slice_num, 125.0);//divisor de clock 
     pwm_set_enabled(slice_num, true);  
 }
-//função que gera alerta sonoro de umidade 
-void alerta_umidade(uint joy_x){
+//função que gera alerta sonoro de nível do reservatório 
+void alerta_nivel(uint joy_x){
     if(aux_Bot_JOY==0){
         pwm_set_gpio_level(buzzer, 0);//10% de Duty cycle
     }else if(joy_x<15){
