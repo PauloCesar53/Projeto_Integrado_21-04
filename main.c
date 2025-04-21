@@ -39,11 +39,7 @@ uint8_t led_b = 5; // Intensidade do azul (inicia mostrando umidade do solo na m
 
 //variáveis globais 
 static volatile int aux = 1; // posição do numero impresso na matriz, inicialmente imprime numero 5
-
 static volatile uint32_t last_time_B = 0; // Armazena o tempo do último evento para Bot B(em microssegundos)
-
-
-
 bool led_buffer[NUM_PIXELS];// Variável (protótipo)
 bool buffer_Numeros[Frames][NUM_PIXELS];// // Variável (protótipo) 
     
@@ -53,7 +49,7 @@ static inline void put_pixel(uint32_t pixel_grb);
 static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b);
 void set_one_led(uint8_t r, uint8_t g, uint8_t b);//liga os LEDs escolhidos 
 
-void gpio_irq_handler(uint gpio, uint32_t events);// protótipo função interrupção para os botões A e B  e JOY
+void gpio_irq_handler(uint gpio, uint32_t events);// protótipo função interrupção para o botão B 
 void Sensor_Matiz_5X5(uint joy_x, uint joy_y);//// protótipo função que escolhe qual sensor será representado na matriz 
 void Imprime_5X5(uint rate);// protótipo função que mostra percentual do  sensor  na matriz 5x5
 void Bomba_reservatorio(uint joy_x);// Protótipo de função para acionar bomba d'água 
@@ -107,41 +103,13 @@ int main()
     gpio_set_irq_enabled_with_callback(Botao_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     bool collor = true;
     while (1)
-    {
-        
-        /*adc_select_input(0);//canal adc JOY para eixo y
-        uint16_t JOY_Y_value = (adc_read()/4095.0)*50; // Lê o valor do eixo y, de 0 a 4095 e calcula temperatura (0 a 50°C)
-        adc_select_input(1);//canal adc JOY para eixo x
-        uint16_t JOY_X_value = (adc_read()/4095.0)*100;// Lê o valor do eixo x, de 0 a 4095 e  calcula % umidade
-        history_T(JOY_Y_value);//calcula e armazena historico de temperatura em 30 intervalos 
-        Sensor_Matiz_5X5(JOY_X_value, JOY_Y_value);//escolhe qual sensor mostrar na matriz de LEDs
-        alerta_umidade(JOY_X_value);//alerta sonoro se umidade cair a baixo de 15%
-        Irrigacao(JOY_X_value);//Liga LED azul simulando acionamento de bomba D'água
-        if(aux_Bot_A==1){//escolhe o que mostrar no display 
-            Monitoramento(JOY_X_value, JOY_Y_value, ssd, collor);//mostra monitoramento em tempo real 
-        }else{
-            His_T_Dislay(ssd, collor);//mostra histórico de Temperatura 
-        }*/
-                         // Converte o inteiro em string
-    
-        
+    {     
         adc_select_input(0);//canal adc JOY para eixo y
         uint16_t JOY_Y_value = adc_read(); // Lê o valor do eixo y, de 0 a 4095.
         adc_select_input(1);//canal adc JOY para eixo x
         uint16_t JOY_X_value = adc_read();// Lê o valor do eixo x, de 0 a 4095.
-    
-
-        //uint  JOY_botton_value= gpio_get(JOY_botton) == 0; // 0 indica que o botão está pressionado.
-    
-        /*if(aux_LED_PWM){//se verdadeiro intensidade para LEDs azul e vermellho disponíveis no JOY
-            LED_Control(JOY_Y_value, JOY_X_value, ajuste, pwm_wrap);
-        }*/
         ssd1306_fill(&ssd, !cor); // Limpa o display
-        // ,cima,esquerda,direita,baixo, 
-        // ,topo,esquerda,largura ,altura, 
-    
-            ssd1306_rect(&ssd, 3, 3, 122, 60, cor, !cor); // Desenha um retângulo
-        
+        ssd1306_rect(&ssd, 3, 3, 122, 60, cor, !cor); // Desenha um retângulo
         uint posicao_X=(127*JOY_X_value/4096);//calcula posição de x no display 
         uint posicao_y=((63*JOY_Y_value/4096)*-1)+63;//calcula posição de y no display 
         char str_x[5];  // Buffer para armazenar a string
@@ -149,15 +117,13 @@ int main()
         uint joy_x=JOY_X_value/4095.0*100;
         uint joy_y=JOY_Y_value/4095.0*50;
         printf("Nivel reservatorio=%d %%   Temperatura=%d °C\n",joy_x,joy_y);
+        
         sprintf(str_x, "%d", joy_x);                     // Converte o inteiro em string
         sprintf(str_y, "%d", joy_y);                     // Converte o inteiro em string
-    
         Sensor_Matiz_5X5(joy_x, joy_y);//escolhe qual sensor mostrar na matriz de LEDs
         alerta_nivel(joy_x);//alerta sonoro se nível reservatório fica < que 15%
         Bomba_reservatorio(joy_x);//Liga LED azul simulando acionamento de bomba D'água
-        //ssd1306_draw_string(&ssd, "MONITORAMENTO", 12, 5); // Desenha uma string
         ssd1306_draw_string(&ssd, str_x, 26, 5);   // Desenha uma string
-
         ssd1306_draw_string(&ssd, "R", 9, 5);   // Desenha uma string
         ssd1306_draw_string(&ssd, "T", 79, 5);   // Desenha uma string
         ssd1306_draw_string(&ssd, "yC", 107, 5);   // equivale a ° na fonte.h
@@ -179,19 +145,15 @@ int main()
         }
         ssd1306_send_data(&ssd); // Atualiza o display
         sleep_ms(100);
-        //Monitoramento(JOY_X_value, JOY_Y_value, ssd, collor);//mostra monitoramento em tempo real
-       
     }
     return 0;
 }
-
 bool led_buffer[NUM_PIXELS] = { //Buffer para armazenar quais LEDs estão ligados matriz 5x5
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0};
-
 bool buffer_Numeros[Frames][NUM_PIXELS] =//Frames que formam nível do sensor mostrado na matriz
     {
       //{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24} referência para posição na BitDogLab matriz 5x5
@@ -236,7 +198,7 @@ void set_one_led(uint8_t r, uint8_t g, uint8_t b)
         }
     }
 }
-// função interrupção para os botões A e B  e JOY com condição para deboucing
+// função interrupção para o botão B
 void gpio_irq_handler(uint gpio, uint32_t events)
 {
     uint32_t current_time = to_us_since_boot(get_absolute_time());//// Obtém o tempo atual em microssegundos
@@ -276,14 +238,14 @@ void Bomba_reservatorio(uint joy_x){
 }
 //função que escolhe qual sensor será representado na matriz de LEDs 
 void Sensor_Matiz_5X5(uint joy_x, uint joy_y){
-    if(aux_Bot_B){//mostra percentual de umidade na matriz de LEDs 
+    if(aux_Bot_B){//mostra nível do reservatório na matriz de LEDs 
         led_b=5;
         led_r=0;
-        Imprime_5X5(joy_x);//imprime umidade do solo Matriz de LEDs
+        Imprime_5X5(joy_x);
     }else{//mostra percentual de temperatura na matriz de LEDs
         led_b=0;
         led_r=5;
-        Imprime_5X5(2*joy_y);//imprime umidade do solo Matriz de LEDs
+        Imprime_5X5(2*joy_y);
         }
 }
 //função para configuração do PWM
